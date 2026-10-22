@@ -8,3 +8,10 @@ backups/
 *.img
 __pycache__/
 *.pyc
+
+# Locally built native artifacts
+vm64_talkback
+*.o
+*.elf
+*.so
+*.a

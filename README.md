@@ -83,6 +83,8 @@ Settings → Devices & Services → **Add Integration → Generic Camera**
 
 Scripted (REST/WS API) version in `scripts/ha_add_camera.py`.
 
+For the native camera-speaker talkback player and the Home Assistant dispatcher flow, see [`docs/talkback-player.md`](docs/talkback-player.md) and [`docs/home-assistant-talkback-integration.md`](docs/home-assistant-talkback-integration.md).
+
 ## Temperature + extra sensors in Home Assistant (no RE needed)
 The camera has an NTC temperature sensor read through the Anyka ADC (`/dev/ak_adc`)
 with a proprietary formula + a factory offset — the app never logs the value and
