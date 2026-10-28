@@ -166,3 +166,41 @@ Player is persisted at camera `/mnt/vm64_play3` (survives reboot).
 - Louder output via higher WAV amplitude / limiter (ak_ao_set_volume unusable).
 - Motion detection via go2rtc/Frigate on the RTSP stream → HA binary_sensor.
 - Optional: Piper TTS on Jarvis for a natural voice; LD_PRELOAD resident player to avoid video drop.
+
+---
+
+## 8. Home Assistant integration (2026-10-28) — DONE
+
+Full chain verified end-to-end (confirmed by the HA entity clearing + fresh audio generated):
+
+**HA dashboard control → camera speech**
+1. Helper `input_text.kids_camera_say` (created via the HA WS API `input_text/create`).
+2. Jarvis systemd service **`cam-poll`** (`cam_poll.py`) polls that entity every 2 s over the HA
+   REST API; on a new value it runs `cam_say.sh` and clears the field. (MQTT broker 1883 is NOT
+   reachable from Jarvis, so this poll design avoids needing it — and needs no HA YAML edits.)
+3. Jarvis systemd service **`cam-say`** (`cam_say_server.py`, port 8790) is an optional HTTP
+   front-end: `GET/POST http://10.0.0.60:8790/say?text=...` → same `cam_say.sh`. Handy for curl /
+   `rest_command` / automations.
+4. Dashboard (storage dashboard url_path `jarvis-hud`, **Junior** view, "Kids Bedroom Camera"
+   section) now has a **"Speak to Kids Room"** entities card wired to `input_text.kids_camera_say`:
+   type text, press Enter → camera speaks within ~2 s.
+
+**Neural voice (Piper)**
+- `cam_say.sh` now prefers **Piper** (`en_GB-alan-medium`, calm British male) for far more natural
+  speech, falling back to espeak-ng if Piper/voice are missing.
+- Piper standalone binary at `~/piper_dist/piper/` (needs `LD_LIBRARY_PATH=.`), voice model at
+  `~/voices/en_GB-alan-medium.onnx` (+ `.json`). Outputs 22050 Hz → ffmpeg resamples to 16 kHz →
+  played at rate-arg 8000 (the 2x-DAC rule).
+- (pip install piper-tts failed on this box: Python 3.14 has no onnxruntime wheels + PEP 668; the
+  prebuilt binary sidesteps both.)
+
+New scripts in `scripts/`: `cam_poll.py`, `cam_say_server.py` (and `cam_say.sh` updated for Piper).
+
+## 9. Roadmap (owner requests, not yet done)
+- **"Black Liquid Glass" theme**: cohesive Apple-glass design/theme across ALL dashboard views.
+- **Motion recording + zones (advanced)**: Frigate on `rtsp://10.0.0.22:6667/blinkhd` (on Jarvis or
+  HA), event recording, zones, snapshots → HA. Optional Coral TPU for AI person/pet detection.
+- **LED / status-LED control via HA**: the factory tool exposes `ftest led`, `ftest irled`,
+  `ftest ircut` — RE these and expose as HA switches/lights (IR illuminator, status LED, IR-cut).
+- **Non-disruptive playback**: LD_PRELOAD resident player in fepe so announcements don't drop video.
+- **Persist cloud blackhole** safely (only if a non-telnet-critical boot hook is available).
