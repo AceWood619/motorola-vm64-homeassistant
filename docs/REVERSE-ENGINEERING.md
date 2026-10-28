@@ -204,3 +204,38 @@ New scripts in `scripts/`: `cam_poll.py`, `cam_say_server.py` (and `cam_say.sh` 
   `ftest ircut` — RE these and expose as HA switches/lights (IR illuminator, status LED, IR-cut).
 - **Non-disruptive playback**: LD_PRELOAD resident player in fepe so announcements don't drop video.
 - **Persist cloud blackhole** safely (only if a non-telnet-critical boot hook is available).
+
+---
+
+## 10. Session 2 add-ons (2026-10-28 AM)
+
+**Voice command (iPhone/Assist -> camera):** HA automation `talk_kids_voice` (conversation trigger)
+matches "tell the kids {message}", "tell junior {message}", "announce to the kids {message}",
+"say {message} to the kids [room]" and sets `input_text.kids_camera_say` to the wildcard text ->
+poller -> camera announces it. Tested via `/api/conversation/process` (matched, action_done, input
+consumed). Use from the HA companion app's Assist mic.
+
+**Dashboard talkback card:** replaced the plain input_text with a "Talk to Kids Room" block (text
+field + one-tap quick-phrase buttons: Dinner's ready / Bedtime / Come here / I love you, each a
+button whose tap_action calls input_text.set_value on kids_camera_say).
+
+**cam_say optimized:** single telnet session (background nc pull + stop/play/restart in one login)
+-> ~40s down to ~15s. Camera telnet logins are the main cost; keep announce round-trips minimal.
+
+**Theme:** applying card-mod glass CSS to all 288 cards BROKE card interactivity (announce box +
+Cync light cards unusable) and must be avoided. Reverted. Instead applied the existing **"Apple
+Dark"** theme (101 vars, Apple indigo, black bg, translucent rounded cards) to all views via each
+view's `theme` key -- safe, global, no card breakage. Full frosted-blur "liquid glass" needs a real
+theme FILE with card-mod directives -> needs HA config-file access (HA SSH is open on :22; need
+creds or the File Editor/SSH add-on). card-mod IS installed (lovelace resource) but per-card glass
+is what broke things.
+
+**FRIGATE = DO NOT run pointed directly at the camera.** Pulling rtsp://10.0.0.22:6667 directly
+exhausted the VM64's few connections and **reboot-looped the camera** (and made talkback time out).
+Removed (image was 8.7 GB). Correct approach for later: point Frigate at go2rtc's RESTREAM
+(rtsp://127.0.0.1:8554/kids_bedroom_camera) so it never opens a camera connection, run on a host
+with headroom + reachable MQTT (HA broker 1883 is NOT reachable from Jarvis), ideally a Coral TPU
+for real person/object zones. Jarvis (4 core / 7GB, already ~80% used) is too small for it.
+
+**Camera stability note:** the VM64 reboots on heavy connection pressure and is slow to respond
+when its single ARMv5 core is loaded; keep concurrent connections (telnet + go2rtc) minimal.
