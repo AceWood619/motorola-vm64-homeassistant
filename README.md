@@ -122,3 +122,22 @@ the same HA area (HA can't move a non-MQTT camera entity into the MQTT device).
 - Erliz/hubble-sniffer — the `:6667/blinkhd` + `/cgi/jpg/image.cgi` Hubble endpoints
 
 See `docs/research-summary.md` for the full feasibility writeup and sources.
+
+
+---
+
+## Update 2026-10-28 — Local speaker / TTS solved (cloud-free)
+
+The camera speaker can now be driven **locally, with no Motorola cloud**: briefly stop the stock
+app (`fepe_simdev`), play audio with our own `vm64_play3` (which opens the Anyka `ak_ao` device
+directly), then restart the app. espeak-ng on the Jarvis box turns text into speech and
+`cam_say.sh "..."` says it in the kids' room. Confirmed audible end-to-end.
+
+Key gotchas discovered (full write-up in [`docs/REVERSE-ENGINEERING.md`](docs/REVERSE-ENGINEERING.md)):
+- `fepe_simdev` owns `/dev/akpcm_cdev0` exclusively → a 2nd opener gets EPERM, so the app must be
+  briefly stopped. Wi-Fi + telnet survive; the app relaunches via `simdev_startup.sh`.
+- `ak_ao_set_volume()` crashes (SIGFPE) on this chip rev — don't call it; use WAV amplitude for volume.
+- The DAC clocks at **2× the set rate**, so author at 16 kHz but pass `8000` to the player.
+- The older `/tmp/daemon_fifo` "PLAY_WAVE" approach does **not** actually make sound (corrected here).
+
+New in `scripts/`: `cam_say.sh`, `stage_file.sh`, `vm64_play3.c`, `camcmd.py`.
