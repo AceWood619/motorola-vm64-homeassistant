@@ -24,3 +24,20 @@
 - nRF24 "promiscuous"/sniffer tricks (shortened address, disabled CRC) help discover unknown addresses — we'll use that to confirm the real pipe address.
 - Legal/benign: we only receive our own devices' link. No transmit into the link until we understand it.
 - This is a real multi-session RE effort; carrier scan + pipe lock is the concrete first milestone.
+
+
+---
+
+## REVISED DIRECTION (2026-10-29): emulate the camera, don't sniff it
+
+**Finding:** inspected the camera over telnet/root. It communicates over **WiFi** (Realtek `wlan0`, `wpa_supplicant`, `RTW_*` threads) and still talks to the **Motorola cloud** (`54.186.238.93`). `fepe_simdev` is the app. There is **no proprietary 2.4 GHz / BK2425 transmitter** running on the camera. The parent unit is **BK2425-only, no wifi**. So there is **no camera→parent RF link to sniff** — this VM64 "Connect" camera is a wifi/cloud model and the handheld parent is a separate proprietary-RF unit; they don't natively pair.
+
+**New plan — make an ESP32 + nRF24/BK2425 *be* the camera (TX → parent):**
+1. Configure the radio with the parent's expected identity from its boot log: **Factory ID=82, Product ID=0xf5b**, the 18 address bytes, 255-ch hopping, payload ~16 bytes (`41 01 ff 3e 02 4x …`).
+2. Reproduce the parent's sync/pairing handshake (the `<0,50,x>` / `****** 1 ******` exchange we see on its UART) so the parent accepts us as "camera 0."
+3. Once the parent locks, feed it frames → the parent becomes a **Synapse-branded HA display**: proxied HA camera feed, room status screens, alerts, etc.
+4. The parent's UART stays our debug/telemetry channel throughout (Phase 1 already live).
+
+This is more achievable than sniffing (we control the TX) and far more useful — the parent turns into a device we drive instead of a dumb Motorola receiver. Hop-sequence/handshake details come from the parent's UART + the Phase-3 firmware dump.
+
+_Boot splash artwork for the repurposed unit: a 480×272 Synapse splash is drafted (PNG + RGB565) — see Phase 3. Final version committed once approved._
