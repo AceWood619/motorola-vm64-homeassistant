@@ -67,3 +67,12 @@ Steps:
    ```
    (Optional `,spispeed=8M` in the dev string. If the XTX chip isn't auto-detected, run once with no -r to see flashrom's message, then force a 25Q32-compatible with `-c`.)
 5. Then: locate the Motorola splash bytes in the dump, splice in the 480×272 Synapse image (same offset/size/format), and `-w pu_flash_synapse.bin` (keep the backup safe).
+
+
+## DUMP COMPLETE — 2026-10-29 (RP2040 + pico-serprog, pure-Python serprog client)
+- Wiring verified: JEDEC ID read 3× = `0B 40 16` (XTX, 25-series, 4 MB) — matches boot log. Powered SoC did NOT contend (consistent reads).
+- Dumped 4 MB twice; **byte-identical, md5 `026322c21cd95440955ebd74da2d9764`** → golden backup `pu_flash_1.bin` / `pu_flash_2.bin` on Mason's PC. (Scripts: serprog_flash.py / pu_analyze.py / pu_map.py / pu_find_splash.py on his PC.)
+- Structure: header `ANYKAS3C` @0x0 (Anyka); firmware in first ~1.5 MB, rest 0xFF.
+- **Images are UNCOMPRESSED** (low-entropy block 0xA8000–0xF0000). Editable in place — no decompress needed.
+- 480×272 image descriptors (`E0 01 10 01`) found @~0xAB740 and a 60-byte-stride table @~0x115B80. Splash is a 480×272 image in the 0xA8000 region.
+- NEXT: render the region to locate the Motorola splash exactly, build a same-size/format Synapse replacement, splice, and write back with `-w`. (Easier once the dump is accessible to Claude for rendering — connect the folder or transfer.)
