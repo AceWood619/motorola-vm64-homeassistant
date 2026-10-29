@@ -1,0 +1,73 @@
+Parent Unit (Lux65 PU MAIN V1.3) — UART boot log @115200 8N1, captured 2026-10-29
+(spam status chars 'sssss...' between messages removed for clarity)
+
+*** power off ***
+clockDividerReg1=8013
+...
+*** power on ***
+
+SPIBOOT_VER: spiboot V1.3.01
+SPI FLASH:id=0x0016400b, set bus =1,clock=10000000
+BIOS loading...
+Decompress BIOS Ok! Jump To 0x30000000
+create task name:D_UART0, stack_size:10240, priority:0
+
+_DRV_LIB_VER=DrvLib V1.0.13
+
+start drv_sys...
+chip_type=AK3750
+warning:pll value is no moderate:320,max is 280
+set pll value:  320, cur: 280
+ASIC clock is 160Mhz
+vtimer init.
+create task name:D_VTIMR, stack_size:10240, priority:3
+spi clk: 16000000
+SPI initialized ok!
+SPI master mode init success!
+Initializing RF...
+CHIP ID=99
+RF=BK2425
+Addr[0]->f   Addr[1]->5b  Addr[2]->0   Addr[3]->2   Addr[4]->ff  Addr[5]->ff
+Addr[6]->ff  Addr[7]->c   Addr[8]->8   Addr[9]->18  Addr[10]->28 Addr[11]->38
+Addr[12]->1  Addr[13]->3  Addr[14]->ff Addr[15]->aa Addr[16]->8  Addr[17]->8
+RF version=00.00.04
+Factory ID=82,Product ID=f5b
+Hopping=255
+Adaptive Hopping=0
+CPU Freq=320000000
+Auto Reload Timer=312
+Init RF Done
+ImageLib version: ImageLib for Linux/android V0.1.04
+lcd probe id = 0x5180, and device id = 0x5180
+match lcd, id = 0x5180
+it's RGB pannel.
+LcdType=[2]  (480x272)
+total icons=180
+create task name:D_AD  (audio in)   MIC ON / ADC2 ON
+create task name:D_DA  (audio out)  DAC ON / HP ON
+battery level 0=0824  1=0831  2=0854  3=0882   poweroff<=0810
+current battery level=929
+Self-test...
+enter normal mode
+
+# Runtime (normal operation) emits continuous status:
+#   sssss...M...w   = RF link scan/sync heartbeat
+#   *** req info=0 ***            <0,50,0> / <0,50,255>   = link request/state
+#   check frame timeout!          = no video frame from camera (camera off/out of range)
+#   *** cam 0 lostlink icon ***   = link to camera 0 lost
+#   ****** 1 ******  41 1 ff 3e 2 4f ... *** diff=0 ***  = RF packet payload dump
+
+=== DECODE ===
+- SoC:  Anyka AK3750  (RTOS / bare-metal, NOT Linux. Tasks: D_UART0/D_VTIMR/D_AD/D_DA via Anyka DrvLib 1.0.13).
+        -> Camera was AK3918EV300 (Linux). Parent unit is a cheaper AK37xx RTOS display/receiver chip.
+- Boot:  Anyka "spiboot V1.3.01" -> decompress BIOS -> jump 0x30000000. No U-Boot, no kernel, no shell.
+- RF:   Beken BK2425 2.4GHz GFSK transceiver (nRF24-class). CHIP ID=99, RF ver 00.00.04.
+        Factory ID=82, Product ID=0x f5b, 18 address bytes, 255-channel freq hopping (adaptive off).
+        -> THIS is the proprietary camera<->parent wireless link.
+- Flash: SPI NOR, id=0x0016400b (holds the firmware; dumpable w/ CH341A + SOIC-8 clip).
+- LCD:  480x272 RGB, panel id 0x5180.  Audio: on-board mic + speaker (DAC).
+- No local camera (tries gc0308, "open camera failed") — it only decodes the RF video from the baby cam.
+
+=== WHAT THIS MEANS ===
+There is NO "root shell" to get here — unlike the camera, this is bare-metal RTOS. BUT we got arguably
+more useful intel: the full RF link spec (BK2425 + IDs + hopping) and a live telemetry UART.
