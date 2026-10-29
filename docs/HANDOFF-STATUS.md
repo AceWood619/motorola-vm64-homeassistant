@@ -1,35 +1,36 @@
 # VM64 Camera → HA — Handoff / Status
 
-_Last verified: 2026-10-28 ~19:45 UTC (scheduled routine run)_
+_Last updated: 2026-10-29 ~00:35 UTC_
 
 ## Standing orders (unchanged)
 - Keep telnet root on the camera (root/babycam123). Do NOT pair to Hubble/Motorola app. No cloud firmware updates.
-- UART is unsoldered = no recovery path, so no wifi/flash gambles that could brick the camera.
-- Parent-unit talkback may be sacrificed for now (Mason: "I can flash that one later via UART").
-- Only benign changes. Confirm audio by ear/eye. Begin each reply with a [HH:MM AM/PM UTC] marker. Keep this file + GitHub repo updated.
+- UART unsoldered = no recovery; no wifi/flash gambles that could brick the camera.
+- Parent-unit talkback may be sacrificed for now (flash later via UART).
+- Confirm audio by ear/eye. Begin each reply with a [HH:MM AM/PM UTC] marker. Keep this file + GitHub repo updated.
 
-## Verified healthy this run (read-only probe, no changes made)
-- **Jarvis** (acewood-MacBookPro11-1, 10.0.0.60 / tailscale 100.126.208.91): up, load ~2.0.
-- **Camera** (10.0.0.22): pings up.
-- **cam-say / cam-poll / cam-led-poll** systemd services: all `active`.
-- **HA** (10.0.0.165:8123 local): HTTP 200.
-- **HA via Tailscale** (100.97.7.107:8123, "homeassistant-2"): HTTP 200 — WORKING.
-- iPhone (iphone173, 100.89.23.26) active on the tailnet.
-- Jarvis docker stack up: mosquitto (MQTT), grafana, influxdb, nodered, esphome, cync-lan, code-server, filebrowser, portainer, searxng, wyoming-openwakeword, mariadb.
+## SSH access to HA box — SOLVED (2026-10-29)
+- The HA box (10.0.0.165) runs the **Advanced SSH & Web Terminal** add-on (slug a0d7b954_ssh).
+- Root cause it was failing: the add-on's SSH port was set to **22**, already in use on the host → daemon crash-looped ("Bind to port 22 ... Address in use"), so the add-on never listened and no key worked.
+- Fix: changed the add-on SSH port to **22222** and started it.
+- Login: **user `hassio`, port 22222**, key = `~/.ssh/ha_cam` (pubkey `...R2JNa claude-cam`) on Jarvis. `hassio` has passwordless **sudo** → full root.
+- From Jarvis: `ssh -i ~/.ssh/ha_cam -p 22222 hassio@10.0.0.165` (then `sudo` for /homeassistant).
+- HA config dir inside the add-on: **/homeassistant** (symlink /config); root-owned 700, so use sudo.
+- The "app errors" Mason saw were mainly the **desktop browser being logged out of HA** (stale dashboard → "Could not load Home Assistant"). After login the dashboard loads fine.
 
-## External access
-- Mason's intended path is **Tailscale** (http://100.97.7.107:8123). It is reachable now from Jarvis (HTTP 200) and his iPhone is on the tailnet — so Tailscale external access appears to be working again.
-- A **temporary public Cloudflare quick-tunnel** container (`cftunnel`) is still running on Jarvis and exposes the whole HA instance (incl. the kids-bedroom camera) on a public URL: https://blind-sporting-oasis-fountain.trycloudflare.com . Restart policy = none; it was (re)created 2026-10-28 18:54 UTC.
-  - Since Tailscale works, this public tunnel is **redundant and an unnecessary public exposure**. Recommend tearing it down: `docker rm -f cftunnel` on Jarvis. NOT removed automatically this run (needs Mason's OK — it's an external change he didn't request).
+## Done this session (2026-10-29)
+1. **Never talk through the kids TV** — the only kids-TV ref was the camera-OFFLINE fallback in automation `junior_school_morning` (tts.speak → media_player.kids_room_streaming_stick). Replaced so that branch sets `input_text.kids_camera_say` (routes to the camera; phone notify still fires). 0 kids-TV refs remain. Backup: automations.yaml.bak-tvroute-*. automation.reload=200, no errors.
+2. **Black Liquid Glass theme** at `/homeassistant/themes/black_liquid_glass.yaml` (theme-only: near-black base, translucent glass cards, icy-cyan glow, 26px radius; dark+light). YAML valid. reload_themes=200; set as backend default via set_theme=200 (confirms registered).
+   - **card-mod is NOT installed**, so this is translucent "dark glass," not true `backdrop-filter` frosted blur. True blur = opt-in later (HACS card-mod, or one global CSS resource — avoid per-card card-mod that broke 288 cards before).
+   - Mason's profile is pinned to "Ace Dark"; to SEE it he picks it in Profile → Theme (one tap). Backend default already = Black Liquid Glass (affects backend-selected kiosk views).
 
-## Still blocked (need Mason / a non-SSH method)
-Mason's guidance: do NOT SSH into the HA box and edit config files directly ("you can't just ssh from my pc like u always do and add in the config files"), and he reported errors in the HA app.
-1. **"Black Liquid Glass" frosted theme** as a real theme file + global TV-route fix (repoint `rest_command.vm64_camera_talkback` → camera /say). Needs write access to HA `/config`. Current workaround in place: "Apple Dark" built-in theme (dashboard is working).
-2. **Frigate motion/recording + zones**: needs MQTT exposed to HA + a suitable host. Note: `mosquitto` is already running on Jarvis (10.0.0.60:1883) — may be usable as the broker. Frigate was previously REMOVED because it reboot-looped the camera (exhausted RTSP connections); any retry must use a go2rtc restream, not direct camera RTSP.
+## External access (earlier run)
+- HA reachable over Tailscale (http://100.97.7.107:8123) — working.
+- Temporary public Cloudflare tunnel `cftunnel` still on Jarvis (redundant). Recommend `docker rm -f cftunnel` once Mason confirms.
 
-## Open question for Mason
-- What are the exact errors the HA app is showing? (needed to pick the right non-SSH path — File Editor / Studio Code Server add-on UI, or he pastes snippets I provide.)
-- OK to tear down the redundant public Cloudflare tunnel now that Tailscale works?
+## Still open / possible next
+- True frosted blur (card-mod or CSS-injection) — opt-in.
+- Frigate motion/recording + zones (mosquitto MQTT already on Jarvis 10.0.0.60:1883; must use go2rtc restream, never direct camera RTSP which reboot-looped it).
+- media_player entity for the camera (DLNA/Snapcast bridge).
 
 ## Working features (recap)
-Local cloud-free speaker playback (vm64_play3, 16kHz authored @ arg 8000 for the 2× DAC), Piper neural voice, HA dashboard talkback + quick phrases, iPhone Assist voice command ("tell the kids …"), file/URL playback, LED/IR control, morning-reminder routed to camera speaker (never the kids TV), Apple Dark theme, GitHub repo documented.
+Local cloud-free camera speaker (vm64_play3, 16kHz @ arg 8000 for 2× DAC), Piper neural voice, HA dashboard talkback + quick phrases, iPhone Assist voice command ("tell the kids …" → camera), file/URL playback, LED/IR control, morning reminder → camera (never kids TV), GitHub documented.
