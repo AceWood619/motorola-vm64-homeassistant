@@ -43,3 +43,27 @@ Procedure (after we can dump+reflash):
 3. Render a **Synapse** logo at 480×272, convert to the same format/stride, splice it into the image at the exact offset (same byte length).
 4. Reflash and verify the golden backup still restores.
 Note: keep the replacement image the **same byte size & format** as the original so offsets/tables don't shift. We'll confirm the exact format from the dump.
+
+
+## Programmer: RP2040 + pico-serprog (no CH341A/clip needed)
+Mason has an RP2040 ("RP2040 USB" stick). Built `pico-serprog.uf2` from kukrimate/pico-serprog (delivered in chat). Source-confirmed pins:
+`#define SPI_CS 5 / SPI_MISO 4 / SPI_MOSI 3 / SPI_SCK 2`  → **GP5=CS, GP4=MISO, GP3=MOSI, GP2=SCK**.
+
+Wiring (RP2040 → the parent's 8-pin SOIC SPI NOR; see rp2040_flash_wiring.png in chat):
+- GP2 → pin 6 CLK   • GP3 → pin 5 DI(MOSI)   • GP4 → pin 2 DO(MISO)   • GP5 → pin 1 CS
+- 3V3 → pin 8 VCC   • GND → pin 4 GND        • pins 3 (WP) & 7 (HOLD) left n/c
+- Parent unit powered **OFF** during flashing (RP2040's 3V3 powers just the flash). Pin 1 = the dot.
+
+Steps:
+1. Hold BOOT on the RP2040, plug into USB, copy `pico-serprog.uf2` to the RPI-RP2 drive.
+2. Wire per above to the flash legs.
+3. On a Linux host where the RP2040 enumerates (Jarvis easiest, or PC via WSL+usbipd): `sudo apt install flashrom`.
+4. Dump 3× and compare (keep the first as the golden backup):
+   ```
+   flashrom -p serprog:dev=/dev/ttyACM0:115200 -r pu_flash_1.bin
+   flashrom -p serprog:dev=/dev/ttyACM0:115200 -r pu_flash_2.bin
+   flashrom -p serprog:dev=/dev/ttyACM0:115200 -r pu_flash_3.bin
+   cmp pu_flash_1.bin pu_flash_2.bin && cmp pu_flash_2.bin pu_flash_3.bin && echo CONSISTENT
+   ```
+   (Optional `,spispeed=8M` in the dev string. If the XTX chip isn't auto-detected, run once with no -r to see flashrom's message, then force a 25Q32-compatible with `-c`.)
+5. Then: locate the Motorola splash bytes in the dump, splice in the 480×272 Synapse image (same offset/size/format), and `-w pu_flash_synapse.bin` (keep the backup safe).
