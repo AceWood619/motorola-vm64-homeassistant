@@ -33,3 +33,13 @@ Boot log: `SPI FLASH: id=0x0016400b`. Decoding the JEDEC bytes (`0B 40 16`):
 
 ## Safety
 Keep `pu_flash_*.bin` as the golden backup before ANY write. We only READ until the image is fully understood. The parent unit is the spare we can risk, but a verified backup means we can always restore.
+
+
+## Phase 3 goal: replace the boot splash with a SYNAPSE logo
+The Motorola boot/splash logo is a bitmap in the SPI flash (boot log reports `total icons=180` — the LCD resource region). Panel is **480×272 RGB** (id 0x5180), so the splash is almost certainly a 480×272 image, likely stored as raw **RGB565** or in Anyka's icon/resource container.
+Procedure (after we can dump+reflash):
+1. Dump `pu_flash.bin` (above) and keep the golden backup.
+2. `binwalk`/hex-search for the 480×272 image region (look near the icon table; RGB565 480×272 = 261,120 bytes; or a packed/compressed resource blob).
+3. Render a **Synapse** logo at 480×272, convert to the same format/stride, splice it into the image at the exact offset (same byte length).
+4. Reflash and verify the golden backup still restores.
+Note: keep the replacement image the **same byte size & format** as the original so offsets/tables don't shift. We'll confirm the exact format from the dump.
