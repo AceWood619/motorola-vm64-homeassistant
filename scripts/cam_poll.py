@@ -6,7 +6,7 @@ import subprocess, json, time, urllib.request, os
 env = subprocess.run(["sudo","cat","/etc/jarvis/claude.env","/etc/jarvis/ha.env"],capture_output=True,text=True).stdout
 kv = dict(l.split("=",1) for l in env.splitlines() if "=" in l and not l.startswith("#"))
 TOK = kv.get("HA_TOKEN","").strip().strip('"')
-URL = kv.get("JARVIS_HA_URL", kv.get("HA_URL","http://10.0.0.165:8123")).strip().strip('"')
+URL = kv.get("JARVIS_HA_URL", kv.get("HA_URL","http://homeassistant.local:8123")).strip().strip('"')
 ENT = "input_text.kids_camera_say"
 HOME = os.path.expanduser("~")
 def api(method, path, data=None):

@@ -17,7 +17,7 @@ telnetd.**
 | RAM | **26 MB total** (~2.7 MB free + ~7 MB reclaimable cache) — the real resource limit |
 | Kernel | Linux **3.4.35** `armv5tejl`, built 2021-05-21 |
 | Flash | 128 MB SPI-NOR, dual-bank A/B OTA layout |
-| Wi-Fi | Realtek RTL871x (`wlan0`); MAC `F0:C8:14:FF:CF:CF` |
+| Wi-Fi | Realtek RTL871x (`wlan0`); MAC `F0:C8:14:xx:xx:xx` |
 | Camera | H.264, 1080p; mic PCMA/16000 |
 
 ### Flash / MTD layout
@@ -41,14 +41,14 @@ brick access with no UART). Treat `/usr/sbin/*` boot scripts as sacred.
 
 ## 2. Access
 
-- **Camera telnet root:** `telnet 10.0.0.22`  user `root` pass `babycam123`. No SSH on the camera.
+- **Camera telnet root:** `telnet <camera-ip>`  user `root`, password = the one you set with `passwd root`. No SSH on the camera.
   Helper `camcmd.py` logs in over a raw socket and runs one command (busybox `nc` half-closes and
   hangs after a transfer, so pull-to-file and act in separate calls; busybox `cp` prompts — use
   `cat a > b`).
-- **Jarvis box** (Ubuntu, go2rtc + ffmpeg + toolchain) `10.0.0.60`:
-  `ssh -i ~/.ssh/hakey acewood@10.0.0.60` (NOPASSWD sudo). All tooling lives here.
-- **Home Assistant** `http://10.0.0.165:8123`; RTSP via go2rtc `rtsp://127.0.0.1:8554/kids_bedroom_camera`
-  and direct `rtsp://10.0.0.22:6667/blinkhd`.
+- **Jarvis box** (Ubuntu, go2rtc + ffmpeg + toolchain) `<jarvis-ip>`:
+  `ssh -i ~/.ssh/hakey <user>@<jarvis-ip>` (NOPASSWD sudo). All tooling lives here.
+- **Home Assistant** `http://homeassistant.local:8123`; RTSP via go2rtc `rtsp://127.0.0.1:8554/kids_bedroom_camera`
+  and direct `rtsp://<camera-ip>:6667/blinkhd`.
 - Persistence that survives camera reboot must live on `/mnt` (the rest of `/tmp` clears).
 
 ---
@@ -136,7 +136,7 @@ player rate arg **8000**.
 ## 5. What is / isn't feasible
 
 - **On-device AI (person/object detection on the camera): NOT feasible** — ARMv5, 26 MB RAM, no
-  NPU/NEON. Correct approach: run detection on the **RTSP stream** (`rtsp://10.0.0.22:6667/blinkhd`)
+  NPU/NEON. Correct approach: run detection on the **RTSP stream** (`rtsp://<camera-ip>:6667/blinkhd`)
   via **Frigate/go2rtc** on Jarvis or the HA box (optionally a Coral USB TPU). Camera just streams.
 - **Replacing the video daemon / custom firmware for lower latency: possible but high-risk** — it
   means replacing the proprietary Anyka encode/RTSP pipeline on a no-UART-recovery unit. Prefer
@@ -145,11 +145,11 @@ player rate arg **8000**.
 
 ---
 
-## 6. Tooling (on Jarvis `10.0.0.60`)
+## 6. Tooling (on Jarvis `<jarvis-ip>`)
 
 | File | Purpose |
 |---|---|
-| `camcmd.py` | telnet-to-camera single-command helper (root/babycam123) |
+| `camcmd.py` | telnet-to-camera single-command helper (root + the password you set) |
 | `stage_file.sh <local> <cam_path>` | md5-verified binary transfer (serves via `nc -l 9085`, camera pulls) |
 | `cam_say.sh "text"` | espeak-ng → 16 kHz WAV → stage → stop/play/restart (local TTS) |
 | `vm64build/vm64_play3(.c)` | the working speaker player (no `ak_ao_set_volume`) |
@@ -179,9 +179,9 @@ Full chain verified end-to-end (confirmed by the HA entity clearing + fresh audi
    REST API; on a new value it runs `cam_say.sh` and clears the field. (MQTT broker 1883 is NOT
    reachable from Jarvis, so this poll design avoids needing it — and needs no HA YAML edits.)
 3. Jarvis systemd service **`cam-say`** (`cam_say_server.py`, port 8790) is an optional HTTP
-   front-end: `GET/POST http://10.0.0.60:8790/say?text=...` → same `cam_say.sh`. Handy for curl /
+   front-end: `GET/POST http://<jarvis-ip>:8790/say?text=...` → same `cam_say.sh`. Handy for curl /
    `rest_command` / automations.
-4. Dashboard (storage dashboard url_path `jarvis-hud`, **Junior** view, "Kids Bedroom Camera"
+4. Dashboard (storage dashboard url_path `jarvis-hud`, kids view, "Kids Bedroom Camera"
    section) now has a **"Speak to Kids Room"** entities card wired to `input_text.kids_camera_say`:
    type text, press Enter → camera speaks within ~2 s.
 
@@ -198,7 +198,7 @@ New scripts in `scripts/`: `cam_poll.py`, `cam_say_server.py` (and `cam_say.sh` 
 
 ## 9. Roadmap (owner requests, not yet done)
 - **"Black Liquid Glass" theme**: cohesive Apple-glass design/theme across ALL dashboard views.
-- **Motion recording + zones (advanced)**: Frigate on `rtsp://10.0.0.22:6667/blinkhd` (on Jarvis or
+- **Motion recording + zones (advanced)**: Frigate on `rtsp://<camera-ip>:6667/blinkhd` (on Jarvis or
   HA), event recording, zones, snapshots → HA. Optional Coral TPU for AI person/pet detection.
 - **LED / status-LED control via HA**: the factory tool exposes `ftest led`, `ftest irled`,
   `ftest ircut` — RE these and expose as HA switches/lights (IR illuminator, status LED, IR-cut).
@@ -210,7 +210,7 @@ New scripts in `scripts/`: `cam_poll.py`, `cam_say_server.py` (and `cam_say.sh` 
 ## 10. Session 2 add-ons (2026-10-28 AM)
 
 **Voice command (iPhone/Assist -> camera):** HA automation `talk_kids_voice` (conversation trigger)
-matches "tell the kids {message}", "tell junior {message}", "announce to the kids {message}",
+matches "tell the kids {message}", "announce to the kids {message}",
 "say {message} to the kids [room]" and sets `input_text.kids_camera_say` to the wildcard text ->
 poller -> camera announces it. Tested via `/api/conversation/process` (matched, action_done, input
 consumed). Use from the HA companion app's Assist mic.
@@ -230,7 +230,7 @@ theme FILE with card-mod directives -> needs HA config-file access (HA SSH is op
 creds or the File Editor/SSH add-on). card-mod IS installed (lovelace resource) but per-card glass
 is what broke things.
 
-**FRIGATE = DO NOT run pointed directly at the camera.** Pulling rtsp://10.0.0.22:6667 directly
+**FRIGATE = DO NOT run pointed directly at the camera.** Pulling rtsp://<camera-ip>:6667 directly
 exhausted the VM64's few connections and **reboot-looped the camera** (and made talkback time out).
 Removed (image was 8.7 GB). Correct approach for later: point Frigate at go2rtc's RESTREAM
 (rtsp://127.0.0.1:8554/kids_bedroom_camera) so it never opens a camera connection, run on a host

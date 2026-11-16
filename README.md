@@ -141,3 +141,17 @@ Key gotchas discovered (full write-up in [`docs/REVERSE-ENGINEERING.md`](docs/RE
 - The older `/tmp/daemon_fifo` "PLAY_WAVE" approach does **not** actually make sound (corrected here).
 
 New in `scripts/`: `cam_say.sh`, `stage_file.sh`, `vm64_play3.c`, `camcmd.py`.
+
+## Script configuration (environment variables)
+
+The helper scripts read your network details from the environment, so nothing household-specific
+lives in this repo. Set these on the always-on LAN host (for systemd units, use `Environment=` or an
+`EnvironmentFile=` that is not committed):
+
+| Variable | Used by | Meaning |
+|---|---|---|
+| `VM64_CAM_HOST` | `camcmd.py`, `backup_all.py` | Camera IP (give it a DHCP reservation) |
+| `VM64_CAM_USER` / `VM64_CAM_PASS` | `camcmd.py` | Telnet login; the password is the one you set with `passwd root` (required) |
+| `JARVIS_HOST` | `cam_say.sh`, `stage_file.sh` | LAN IP of the host running the scripts (the camera pulls files from it) |
+| `PIPERD` / `VOICE` | `cam_say.sh` | Piper binary folder and voice model (default `~/piper_dist/piper`, `~/voices/...`) |
+| `HA_URL` / `JARVIS_HA_URL` | `cam_poll.py`, `cam_led_poll.py`, `parent_unit_ha.py` | Home Assistant URL (default `http://homeassistant.local:8123`) |
