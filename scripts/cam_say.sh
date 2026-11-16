@@ -4,8 +4,10 @@
 # OPTIMIZED: a single telnet session to the camera (background nc pull, then stop fepe/play/restart
 # in the same login) -- cut announce time from ~40s to ~15s on a sluggish camera link.
 TEXT="$1"
-PIPERD=/home/acewood/piper_dist/piper
-VOICE=/home/acewood/voices/en_GB-alan-medium.onnx
+PIPERD=${PIPERD:-$HOME/piper_dist/piper}
+VOICE=${VOICE:-$HOME/voices/en_GB-alan-medium.onnx}
+# LAN address of this host as the camera sees it (the camera pulls the WAV from here with nc).
+JARVIS_HOST=${JARVIS_HOST:?set JARVIS_HOST to the LAN IP of this host}
 if [ -x "$PIPERD/piper" ] && [ -f "$VOICE" ]; then
   printf '%s' "$TEXT" | ( cd "$PIPERD" && LD_LIBRARY_PATH=. ./piper -m "$VOICE" -f /tmp/tts_raw.wav 2>/dev/null )
 fi
@@ -17,5 +19,5 @@ rm -f /tmp/tts_raw.wav
 PORT=9085
 setsid bash -c "timeout 15 nc -l $PORT < /tmp/cam_tts.wav >/dev/null 2>&1" >/dev/null 2>&1 &
 sleep 1
-python3 ~/camcmd.py "nc 10.0.0.60 $PORT > /tmp/talkback.wav & NP=\$!; sleep 3; kill \$NP 2>/dev/null; setsid sh -c \"stop_simdev.sh >/dev/null 2>&1; sleep 1; /mnt/vm64_play3 /tmp/talkback.wav 8000 1 >/tmp/p3.log 2>&1; setsid /usr/sbin/simdev_startup.sh >/tmp/x 2>&1 </dev/null &\" >/dev/null 2>&1 & echo DISPATCHED" 7
+python3 ~/camcmd.py "nc $JARVIS_HOST $PORT > /tmp/talkback.wav & NP=\$!; sleep 3; kill \$NP 2>/dev/null; setsid sh -c \"stop_simdev.sh >/dev/null 2>&1; sleep 1; /mnt/vm64_play3 /tmp/talkback.wav 8000 1 >/tmp/p3.log 2>&1; setsid /usr/sbin/simdev_startup.sh >/tmp/x 2>&1 </dev/null &\" >/dev/null 2>&1 & echo DISPATCHED" 7
 echo "SAID: $TEXT"

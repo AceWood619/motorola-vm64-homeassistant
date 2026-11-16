@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # camcmd.py "<camera shell cmd>" [seconds_to_wait]
-# Raw-socket telnet helper: logs into the VM64 camera (root/babycam123 @ 10.0.0.22)
-# and runs a single command. Runs on the Jarvis box (10.0.0.60).
-import socket, sys, time
-HOST="10.0.0.22"; PORT=23; USER=b"root"; PW=b"babycam123"
+# Raw-socket telnet helper: logs into the VM64 camera as root and runs a single command.
+# Runs on the always-on LAN host ("Jarvis" box).
+# Config (env): VM64_CAM_HOST (camera IP), VM64_CAM_USER (default root),
+#               VM64_CAM_PASS (the password you set with `passwd root`; required).
+import os, socket, sys, time
+HOST=os.environ.get("VM64_CAM_HOST", "vm64-camera.local"); PORT=23
+USER=os.environ.get("VM64_CAM_USER", "root").encode()
+PW=os.environ.get("VM64_CAM_PASS", "").encode()
 def recv_until(s, subs, timeout=8):
     s.settimeout(0.6); buf=b""; t0=time.time()
     while time.time()-t0<timeout:
@@ -17,6 +21,8 @@ def recv_until(s, subs, timeout=8):
             pass
     return buf
 def main():
+    if not PW:
+        sys.exit("camcmd.py: set VM64_CAM_PASS (and VM64_CAM_HOST) in the environment")
     cmd=sys.argv[1] if len(sys.argv)>1 else "pwd"
     wait=float(sys.argv[2]) if len(sys.argv)>2 else 3.0
     s=socket.create_connection((HOST,PORT),timeout=8)

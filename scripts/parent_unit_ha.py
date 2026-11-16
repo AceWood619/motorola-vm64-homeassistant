@@ -2,7 +2,7 @@ import serial, time, re, json, os, urllib.request
 
 PORT = os.environ.get("PU_PORT", "COM7")
 BAUD = int(os.environ.get("PU_BAUD", "115200"))
-HA_URL = os.environ.get("HA_URL", "http://10.0.0.165:8123")
+HA_URL = os.environ.get("HA_URL", "http://homeassistant.local:8123")
 TOKEN = open(os.path.join(os.path.expanduser("~"), "pu_ha.token")).read().strip()
 LOG = os.path.join(os.path.expanduser("~"), "uart.log")
 LOG_CAP = 10 * 1024 * 1024  # rotate at 10MB

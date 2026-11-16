@@ -4,7 +4,7 @@ Camera serves each partition with `nc -l`; this PC pulls it. Edit CAMIP.
 For partitions with bad blocks (here B/mtd5 and D/mtd7) a plain block-device read via `cat`
 STOPS at the first bad block, so those use `nanddump --bb=padbad` instead (data+OOB)."""
 import serial, socket, time, os, hashlib
-CAMIP = "10.0.0.22"; PORT = 9000
+CAMIP = os.environ.get("VM64_CAM_HOST", "YOUR_CAM_IP"); PORT = 9000
 # (name, device, use_nanddump) -- adjust to your /proc/mtd
 PARTS = [("MAC","mtdblock1",False),("ENV","mtdblock2",False),("KERNEL","mtdblock3",False),
          ("A_rootfs","mtdblock4",False),("C","mtdblock6",False),("KERBAK","mtdblock8",False),
